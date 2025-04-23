@@ -1,14 +1,27 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import asyncio
 from pyrogram import Client, filters
 from PyroUbot import *
 from pyrogram.types import Message
 
+__MODULE__ = "ʀᴇᴍɪɴᴅᴇʀ"
+__HELP__ = """
+<blockquote><b>ᴍᴏᴅᴜʟ ɪɴɪ ᴍᴇᴍᴜɴɢᴋɪɴᴋᴀɴ ᴘᴇɴɢɢᴜɴᴀ ᴜɴᴛᴜᴋ ᴍᴇɴɢᴀᴛᴜʀ ᴘᴇɴɢɪɴɢᴀᴛ.</b>
+
+<b>• ᴘᴇʀɪɴᴛᴀʜ:</b> <code>{0}addremind</code>
+<code>• ᴘᴇɴᴊᴇʟᴀꜱᴀɴ: ᴍᴇɴɢᴀᴛᴜʀ ᴘᴇɴɢɪɴɢᴀᴛ ᴡᴀᴋᴛᴜ ᴜɴᴛᴜᴋ ᴋᴇᴅᴇᴘᴀɴɴʏᴀ.
+
+ᴄᴏɴᴛᴏʜ: 
+.remind 1h30m ʙᴇʟɪ ꜱᴜꜱᴜ
+.remind 1h30m ᴄᴇᴋ ᴇᴍᴀɪʟ
+
+ᴄᴀᴛᴀᴛᴀɴ: ᴀʀɢᴜᴍᴇɴ ᴡᴀᴋᴛᴜ ᴍᴇɴᴅᴜᴋᴜɴɢ ʙᴇʀʙᴀɢᴀɪ ꜰᴏʀᴍᴀᴛ ꜱᴇᴘᴇʀᴛɪ ᴊᴀᴍ (j), ᴍᴇɴɪᴛ (m), ᴅᴀɴ ʜᴀʀɪ (h).</code>
+
+<b>•ᴘᴇʀɪɴᴛᴀʜ:</b> <code>{0}listremind</code>
+<code>• ᴘᴇɴᴊᴇʟᴀꜱᴀɴ: ᴍᴇɴᴀᴍᴘɪʟᴋᴀɴ ᴅᴀꜰᴛᴀʀ ᴘᴇɴɢɪɴɢᴀᴛ ʏᴀɴɢ ᴛᴇʀꜱɪᴍᴘᴀɴ.</code></blockquote>"""
 
 REMINDERS_FILE = "PyroUbot/core/database/reminders.json"
-
-
 
 def load_reminders(): 
     try:
@@ -22,25 +35,18 @@ def save_reminders(reminders):
     with open(REMINDERS_FILE, 'w') as file:
         json.dump(reminders, file, indent=4)
 
-def parse_time(time_str):
+def parse_time_to_delta(time_str):
     try:
-        # Remove spaces and make lowercase to make it case insensitive
         time_str = time_str.replace(" ", "").lower()
-
-        # Ensure the format is 'XhXm'
         if 'h' in time_str and 'm' in time_str:
-            # Split by 'h' and 'm' to get hours and minutes
             parts = time_str.split('h')
             hours = int(parts[0])
             minutes = int(parts[1].split('m')[0])
-
-            # Return formatted time as '%H:%M'
-            return f"{hours:02}:{minutes:02}"
+            return timedelta(hours=hours, minutes=minutes)
         else:
-            raise ValueError("Invalid time format. Please use 'XhXm' format.")
-
+            raise ValueError("Invalid time format. Use 'XhXm' like '1h30m'.")
     except (ValueError, IndexError):
-        raise ValueError("Invalid time format. Please use 'XhXm' format like '1h30m'.")
+        raise ValueError("Invalid time format. Use 'XhXm' like '1h30m'.")
 
 # Command to add a reminder
 @PY.UBOT("addremind")
@@ -52,37 +58,40 @@ async def _(client, message: Message):
             await message.reply('Usage: .addremind <time> <reminder_text>')
             return
 
-        reminder_time_str = parts[1]
+        time_input = parts[1]
         reminder_text = parts[2]
 
-        # Parse time from 'Xh:Xm' format
-        reminder_time_str = parse_time(reminder_time_str)
+        # Convert to timedelta
+        wait_duration = parse_time_to_delta(time_input)
+        reminder_time = datetime.now() + wait_duration
 
-        # Convert the time to a datetime object
-        reminder_time = datetime.strptime(reminder_time_str, "%H:%M")
-        current_time = datetime.now()
-        wait_time = (reminder_time - current_time).total_seconds()
+        total_seconds = int(wait_duration.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
 
-        if wait_time < 0:
-            wait_time += 86400  # If the reminder time is past, schedule it for the next day
 
-        # Save the reminder to the list
+        # Save reminder info
         reminders = load_reminders()
         reminder = {
-            'time': reminder_time.strftime("%H:%M"),
+            'time': reminder_time.strftime("%Y-%m-%d %H:%M:%S"),
             'text': reminder_text,
-            'created_at': current_time.strftime("%Y-%m-%d %H:%M:%S")
+            'created_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         reminders.append(reminder)
         save_reminders(reminders)
 
-        # Wait until the reminder time is reached
-        await asyncio.sleep(wait_time)
+        await message.reply(
+    f"⏰ Reminder berhasil disetel!\n"
+    f"🕐 Dalam {hours} jam {minutes} menit\n"
+    f"📅 Pada {reminder_time.strftime('%A, %d %B %Y %H:%M:%S')}"
+)
 
-        # Send the reminder
+        # Wait and send reminder
+        await asyncio.sleep(wait_duration.total_seconds())
         await message.reply(f'Reminder: {reminder_text}')
     except Exception as e:
         await message.reply(f'Error: {str(e)}')
+
 
 # Command to list all active reminders
 @PY.UBOT("listremind")
