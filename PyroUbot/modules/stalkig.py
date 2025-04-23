@@ -3,11 +3,11 @@ import os
 from pyrogram import Client
 from PyroUbot import *
 
-__MODULE__ = "s??????"
+__MODULE__ = "sᴛᴀʟᴋɪɢ"
 __HELP__ = """
-<blockquote><b>? ??????? ?</b>
+<blockquote><b>『 sᴛᴀʟᴋɪɢ 』</b>
 
-  <b>? ????????</b> <code>{0}stalkig</code> 
+  <b>➢ ᴘᴇʀɪɴᴛᴀʜ:</b> <code>{0}stalktt</code>
    <i>penjelasan:</b> untuk stalk instagram menggunakan username</i></blockquote>
 """
 
