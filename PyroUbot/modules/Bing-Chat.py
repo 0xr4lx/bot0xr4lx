@@ -22,12 +22,12 @@ async def chat_gpt(client, message):
 
         if len(message.command) < 2:
             await message.reply_text(
-                "<emoji id=5019523782004441717>❌</emoji>mohon gunakan format\ncontoh : .bard query"
+                "<emoji id=5019523782004441717>❌</emoji>mohon gunakan format\ncontoh : .bing query"
             )
         else:
-            prs = await message.reply_text(f"<emoji id=5469745532693923461>♾</emoji>Proccesing Kingz....")
+            prs = await message.reply_text(f"<emoji id=5469745532693923461>♾</emoji>Proccesing....")
             a = message.text.split(' ', 1)[1]
-            response = requests.get(f'https://api.botcahx.eu.org/api/search/bing-chat?text={a}&apikey=Boyy')
+            response = requests.get(f'https://api.botcahx.eu.org/api/search/bing-chat?text={a}&apikey=0xr4lx')
 
             try:
                 if "message" in response.json():
