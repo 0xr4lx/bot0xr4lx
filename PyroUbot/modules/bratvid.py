@@ -2,6 +2,16 @@ import requests
 import os
 from PyroUbot import *
 
+__MODULE__ = "ʙʀᴀᴛ ᴠɪᴅɪᴏ"
+__HELP__ =  """
+<b>⦪ ʙᴀɴᴛᴜᴀɴ ᴜɴᴛᴜᴋ ʙʀᴀᴛ ⦫ </b>
+
+<blockquote><b>⎆ ᴘᴇʀɪɴᴛᴀʜ:
+ᚗ <code>{0}bratvideo [text]</code>
+⊷ Untuk Membuat Gambar Text video Seperti Tren Tiktok</b></blockquote>
+
+"""
+
 async def BratVideo(text):
     if not text:
         return "textnya mana?"
