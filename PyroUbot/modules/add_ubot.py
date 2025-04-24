@@ -10,11 +10,13 @@ from pyrogram.raw import functions
 
 from PyroUbot import *
 
+waktu_aktif = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+  
 
 @PY.BOT("start")
 @PY.START
 @PY.PRIVATE
-async def _(client, message):
+async def _(client, message): 
     buttons = BTN.START(message)
     msg = MSG.START(message)
     await message.reply(msg, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
@@ -314,16 +316,20 @@ async def _(client, callback_query):
     await install_my_peer(new_client)
     try:
         await new_client.join_chat("linxxpublic")
-        await new_client.join_chat("linxxprvt")
+        await new_client.join_chat("LinxxUserbotSupport")
+        await new_client.join_chat("+kcClGnn37GdlNzc1")
     except UserAlreadyParticipant:
         pass
+
 
     return await bot.send_message(
         LOGS_MAKER_UBOT,
         f"""
-<b>⌬ ᴜsᴇʀʙᴏᴛ ᴅɪᴀᴋᴛɪғᴋᴀɴ</b>
+<b>❏ ʟɪɴxx ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ᴅɪᴀᴋᴛɪғᴋᴀɴ</b>
 <b> ├ ᴀᴋᴜɴ:</b> <a href=tg://user?id={new_client.me.id}>{new_client.me.first_name} {new_client.me.last_name or ''}</a> 
-<b> ╰ ɪᴅ:</b> <code>{new_client.me.id}</code>
+<b> ├ ɪᴅ:</b> <code>{new_client.me.id}</code>
+<b> ├ ᴘʀᴇꜰɪxᴇꜱ:</b> {' '.join(SH)}
+<b> ╰ ᴀᴋᴛɪꜰ ᴘᴀᴅᴀ:</b> {waktu_aktif}
 """,
         reply_markup=InlineKeyboardMarkup(
             [
@@ -345,7 +351,6 @@ async def is_cancel(callback_query, text):
         )
         return True
     return False
-
 
 @PY.BOT("control")
 async def _(client, message):
