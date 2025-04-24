@@ -317,7 +317,7 @@ async def _(client, callback_query):
     try:
         await new_client.join_chat("linxxpublic")
         await new_client.join_chat("LinxxUserbotSupport")
-        await new_client.join_chat("+kcClGnn37GdlNzc1")
+        await new_client.join_chat("Linxxyz")
     except UserAlreadyParticipant:
         pass
 
