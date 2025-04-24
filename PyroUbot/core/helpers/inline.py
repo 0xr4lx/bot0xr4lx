@@ -139,7 +139,7 @@ class BTN:
                 [InlineKeyboardButton("⦪ ʙᴇʟɪ ᴜꜱᴇʀʙᴏᴛ ⦫", callback_data="bahan")],
                 [
                     InlineKeyboardButton("⦪ ɢʀᴏᴜᴘ ᴘᴜʙʟɪᴄ ⳼", url="t.me/linxxpublic"), 
-                    InlineKeyboardButton("⦪ ᴄʜᴀɴɴᴇʟ ⦫", url="t.me/linxxprvt")
+                    InlineKeyboardButton("⦪ ᴄʜᴀɴɴᴇʟ ⦫", url="t.me/Linxxyz")
                 ],
                 [
                     InlineKeyboardButton("⦪ ʙᴜᴀᴛ ᴜsᴇʀʙᴏᴛ ⳼", callback_data="buat_ubot"),
