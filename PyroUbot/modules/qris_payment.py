@@ -42,15 +42,26 @@ class QRISPayment:
             "merchant": self.merchant,
             "apikey": self.apikey
         }
-        response = requests.get(url, params=params)
-        data = response.json()
+        try:
+            response = requests.get(url, params=params)
+            data = response.json()
+            
+            if data.get("statusCode") != 200:
+                return {"status": "unpaid"}
 
-        if data.get("statusCode") != 200:
+            payment = data.get("data", {})
+
+            if int(payment.get("amount", 0)) == expected_amount and payment.get("type") == "CR":
+                return {
+                    "status": "paid",
+                    "brand_name": payment.get("brand_name", "-"),
+                    "issuer_reff": payment.get("issuer_reff", "-"),
+                    "buyer_reff": payment.get("buyer_reff", "-"),
+                    "date": payment.get("date", "-")
+                }
+            
             return {"status": "unpaid"}
-
-        payment = data.get("data", {})
-
-        if int(payment.get("amount", 0)) == expected_amount:
-            return {"status": "paid"}
         
-        return {"status": "unpaid"}
+        except Exception as e:
+            print(f"Error checking payment: {e}")
+            return {"status": "unpaid"}
