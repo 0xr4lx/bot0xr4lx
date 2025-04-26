@@ -16,7 +16,7 @@ db = client["PyroUbot"]
 payments = db["payments"]
 
 # Konfigurasi QRIS
-HARGA_DASAR = 1000
+HARGA_DASAR = 200
 LOG_CHANNEL = -1002663436301
 
 qris = QRISPayment(
@@ -110,7 +110,7 @@ async def confirm_payment(client, callback_query):
         f"""
 <blockquote><b>⌛ Menunggu pembayaran...</b>
 <b>⏱️Sisa waktu:</b> {sisa_menit} menit {sisa_detik} detik.
-<b>💰Total Bayar:</b> Rp{total:,}
+<b>💰Total Bayar:</b> Rp{total:,}</blockquote>
 """
       )
 
@@ -138,6 +138,10 @@ async def confirm_payment(client, callback_query):
     while elapsed < timeout:
         result = qris.check_payment(total)
         if result.get("status") == "paid":
+            brand_name = result.get("brand_name", "Tidak diketahui")
+            issuer_reff = result.get("issuer_reff", "Tidak tersedia") 
+            payment_time = result.get("date", "-")                         
+                                     
             await qr_message.delete()
             await waiting_message.delete()
             await add_to_vars(bot.me.id, "PREM_USERS", user_id)
@@ -163,7 +167,9 @@ Selamat menggunakan userbot! 🚀</blockquote>
 
 <blockquote><b>💰 Nominal:</b> Rp{total:,}</blockquote>
 <blockquote><b>📅 Expired dalam:</b> {data['bulan']} bulan</blockquote>
-<blockquote><b>🕓 Waktu Pembayaran:</b> {waktu_indo()}</blockquote>
+<blockquote><b>🏦 Metode Pembayaran:</b> {brand_name}</blockquote>
+<blockquote><b>🧾 Referensi:</b> {issuer_reff}</blockquote>
+<blockquote><b>🕓 Waktu Pembayaran:</b> {payment_time}</blockquote>
 """)
             return
         
@@ -173,7 +179,11 @@ Selamat menggunakan userbot! 🚀</blockquote>
         if waiting_message:
             try:
                 await waiting_message.edit_text(
-                    f"⌛ Menunggu pembayaran...\nSisa waktu: {sisa_menit} menit {sisa_detik} detik."
+                    f"""
+<blockquote><b>⌛ Menunggu pembayaran...</b></blockquote>
+<blockquote><b>⏱️Sisa waktu:</b> {sisa_menit} menit {sisa_detik} detik.</blockquote>
+<blockquote><b>💰Total Bayar:</b> Rp{total:,}</blockquote>
+"""
                 )
             except Exception:
                 pass
