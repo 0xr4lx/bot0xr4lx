@@ -1,169 +1,250 @@
 import asyncio
-from datetime import datetime
-
-from dateutil.relativedelta import relativedelta
+import random
+from datetime import datetime, timedelta
+from pymongo import MongoClient
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from pytz import timezone
+from PyroUbot import bot, PY
+from PyroUbot.config import MONGO_URL
+from PyroUbot.core.database.expired import set_expired_date
+from PyroUbot.core.database.variabel import add_to_vars
+from dateutil.relativedelta import relativedelta
+from PyroUbot.modules.qris_payment import QRISPayment
 
-from PyroUbot import *
+# Setup Database
+client = MongoClient(MONGO_URL)
+db = client["PyroUbot"]
+payments = db["payments"]
 
-CONFIRM_PAYMENT = []
+# Konfigurasi QRIS
+HARGA_DASAR = 1000
+LOG_CHANNEL = -1002663436301
 
+qris = QRISPayment(
+    token="ranzaja",
+    apikey="653212317455454511020308OKCT936AAD7E36C390B9E4E1337FFCD1732C",
+    merchant="OK1020308",
+    qris_data="00020101021226670016COM.NOBUBANK.WWW01189360050300000879140214953033347867480303UMI51440014ID.CO.QRIS.WWW0215ID20232550718540303UMI5204511153033605802ID5910RENN STORE6008BOYOLALI61055731162070703A016304F73D"
+)
+
+def waktu_indo():
+    utc_now = datetime.utcnow()
+    wib_now = utc_now + timedelta(hours=7)
+    return wib_now.strftime("%d-%m-%Y %H:%M:%S")
+
+def build_markup(user_id, bulan, total):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("➖", callback_data=f"minus_month:{user_id}"),
+            InlineKeyboardButton(f"{bulan} Bulan", callback_data="duration"),
+            InlineKeyboardButton("➕", callback_data=f"plus_month:{user_id}")
+        ],
+        [InlineKeyboardButton("✅ Konfirmasi", callback_data=f"confirm:{user_id}")]
+    ])
+
+@PY.CALLBACK("bayar")
+async def bayar_awal(client, callback_query):
+    user = callback_query.from_user
+    full_name = f"{user.first_name} {user.last_name or ''}".strip()
+    username = f"@{user.username}" if user.username else full_name
+
+    payments.delete_many({"user_id": user.id, "status": "draft"})
+    payments.insert_one({
+        "user_id": user.id,
+        "full_name": full_name,
+        "username": username,
+        "harga_dasar": HARGA_DASAR,
+        "bulan": 1,
+        "status": "draft",
+        "created_at": datetime.utcnow()
+    })
+
+    await callback_query.message.edit_text(
+        f"""
+<blockquote><b>💬 sɪʟᴀʜᴋᴀɴ ᴍᴇʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴛᴇʀʟᴇʙɪʜ ᴅᴀʜᴜʟᴜ</b>
+
+🎟️ ʜᴀʀɢᴀ ᴘᴇʀʙᴜʟᴀɴ: Rp{HARGA_DASAR:,}
+
+💳 ᴍᴏᴛᴏᴅᴇ ᴘᴇᴍʙᴀʏᴀʀᴀɴ:
+ ├ Qʀɪꜱ ᴀʟʟ ᴘᴀʏᴍᴇɴᴛ 
+ 🔖 ᴛᴏᴛᴀʟ ʜᴀʀɢᴀ: Rp{HARGA_DASAR:,}
+ 🗓️ ᴘᴀᴋᴇᴛ: 1 Bulan
+
+Owner Bot: @anonyrel
+
+🛍 ᴋʟɪᴋ ᴛᴏᴍʙᴏʟ ᴋᴏɴꜰɪʀᴍᴀsɪ ᴜɴᴛᴜᴋ ᴍᴇʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ</blockquote>
+""",
+        reply_markup=build_markup(user.id, 1, HARGA_DASAR)
+    )
 
 @PY.CALLBACK("^confirm")
-async def _(client, callback_query):
-    user_id = int(callback_query.from_user.id)
-    full_name = f"{callback_query.from_user.first_name} {callback_query.from_user.last_name or ''}"
-    get = await bot.get_users(user_id)
-    CONFIRM_PAYMENT.append(get.id)
+async def confirm_payment(client, callback_query):
+    user_id = int(callback_query.data.split(":")[1])
+    data = payments.find_one({"user_id": user_id, "status": "draft"})
+    if not data:
+        return await callback_query.answer("Data tidak ditemukan.", show_alert=True)
+
+    kode_unik = random.randint(1, 300)
+    total = data["harga_dasar"] * data["bulan"] + kode_unik
+
     try:
-        await callback_query.message.delete()
-        pesan = await bot.ask(
-            user_id,
-            f"""
-<blockquote><b>SILAHKAN MELAKUKAN PEMBAYARAN KE NOMOR DANA OWNER</b>           
+        qris_data = qris.generate_qr(total)
+        qr_image_path = f"temp_qr_{user_id}.png"
+        qris_data['qr_image'].save(qr_image_path)
+    except Exception as e:
+        return await callback_query.message.edit_text(f"❌ Gagal generate QRIS:\n{e}")
 
-DANA : ||HUB. OWNER||
+    payments.update_one({"_id": data["_id"]}, {"$set": {
+        "total": total,
+        "kode_unik": kode_unik,
+        "transaction_id": qris_data.get("transaction_id"),
+        "status": "pending"
+    }})
 
-<b>💬 sɪʟᴀʜᴋᴀɴ ᴋɪʀɪᴍᴋᴀɴ ʙᴜᴋᴛɪ sᴄʀᴇᴇɴsʜᴏᴛ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴀɴᴅᴀ: {full_name}</b></blockquote>
-""",
-            timeout=300,
-        )
-    except asyncio.TimeoutError as out:
-        return await bot.send_message(get.id, "ᴘᴇᴍʙᴀᴛᴀʟᴀɴ ᴏᴛᴏᴍᴀᴛɪs")
-    if get.id in CONFIRM_PAYMENT:
-        if not pesan.photo:
-            CONFIRM_PAYMENT.remove(get.id)
-            buttons = [[InlineKeyboardButton("✅ ᴋᴏɴꜰɪʀᴍᴀsɪ", callback_data="confirm")]]
-            return await bot.send_message(
-                user_id,
-                """
-<blockquote><b>❌ ᴛɪᴅᴀᴋ ᴅᴀᴘᴀᴛ ᴅɪᴘʀᴏsᴇs</b>
+    timeout = 300  # 5 menit
+    interval = 10  # cek pembayaran tiap 10 detik
+    elapsed = 0
 
-<b>💬 ʜᴀʀᴀᴘ ᴋɪʀɪᴍᴋᴀɴ sᴄʀᴇᴇɴsʜᴏᴛ ʙᴜᴋᴛɪ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴀɴᴅᴀ ʏᴀɴɢ ᴠᴀʟɪᴅ</b>
+    sisa_menit = timeout // 60
+    sisa_detik = timeout % 60
+    waiting_message = await callback_query.message.edit_text(
+        f"""
+<blockquote><b>⌛ Menunggu pembayaran...</b>
+<b>⏱️Sisa waktu:</b> {sisa_menit} menit {sisa_detik} detik.
+<b>💰Total Bayar:</b> Rp{total:,}
+"""
+      )
 
-<b>✅ sɪʟᴀʜᴋᴀɴ ᴋᴏɴꜰɪʀᴍᴀsɪ ᴜʟᴀɴɢ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴀɴᴅᴀ</b></blockquote>
-""",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
-        elif pesan.photo:
-            buttons = BTN.ADD_EXP(get.id)
-            await pesan.copy(
-                OWNER_ID,
-                reply_markup=buttons,
-            )
-            CONFIRM_PAYMENT.remove(get.id)
-            buttons = [
-                [InlineKeyboardButton("📞 ᴏᴡɴᴇʀ", url="https://t.me/anonyrel")]
-            ]
-            return await bot.send_message(
-                user_id,
-                f"""
-<blockquote><b>💬 ʙᴀɪᴋ {full_name} sɪʟᴀʜᴋᴀɴ ᴅɪᴛᴜɴɢɢᴜ ᴅᴀɴ ᴊᴀɴɢᴀɴ sᴘᴀᴍ ʏᴀ</b>
+    qr_message = await bot.send_photo(
+        user_id,
+        photo=qr_image_path,
+        caption=
+        f"""
+<blockquote>🧾 <b>PEMBAYARAN USERBOT</b>
 
-<b>🏦 ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴀɴᴅᴀ ᴀᴋᴀɴ ᴅɪᴋᴏɴꜰɪʀᴍᴀsɪ sᴇᴛᴇʟᴀʜ 1-2 ᴊᴀᴍ ᴋᴇʀᴊᴀ</b></blockquote>
-""",
-                reply_markup=InlineKeyboardMarkup(buttons),
-            )
+<b>👤 Nama:</b> {data['full_name']}
+<b>💸 Harga:</b> Rp{data['harga_dasar']:,} x {data['bulan']} bulan
+<b>🔢 Kode Unik:</b> Rp{kode_unik}
+<b>💰 Total:</b> Rp{total:,}
+<b>🗓️ Paket:</b> 1 Bulan
+<b>⏳ Menunggu Pembayaran..</b>
+<b>⚠️Harap bayar tepat sesuai nominal diatas</b>
+<b>⏱️ Time out: 5 menit</b></blockquote>
+
+"""
+    )
 
 
-@PY.CALLBACK("^(kurang|tambah)")
-async def _(client, callback_query):
-    BULAN = int(callback_query.data.split()[1])
-    HARGA = 20
-    QUERY = callback_query.data.split()[0]
-    try:
-        if QUERY == "kurang":
-            if BULAN > 1:
-                BULAN -= 1
-                TOTAL_HARGA = HARGA * BULAN
-        elif QUERY == "tambah":
-            if BULAN < 12:
-                BULAN += 1
-                TOTAL_HARGA = HARGA * BULAN
-        buttons = BTN.PLUS_MINUS(BULAN, callback_query.from_user.id)
-        await callback_query.message.edit_text(
-            MSG.TEXT_PAYMENT(HARGA, TOTAL_HARGA, BULAN),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
-    except:
-        pass
 
+    while elapsed < timeout:
+        result = qris.check_payment(total)
+        if result.get("status") == "paid":
+            await qr_message.delete()
+            await waiting_message.delete()
+            await add_to_vars(bot.me.id, "PREM_USERS", user_id)
+            expired = datetime.utcnow() + relativedelta(months=data["bulan"])
+            await set_expired_date(user_id, expired)
 
-@PY.CALLBACK("^(success|failed|home)")
-async def _(client, callback_query):
-    query = callback_query.data.split()
-    get_user = await bot.get_users(query[1])
-    if query[0] == "success":
-        buttons = [
-            [InlineKeyboardButton("🔥 ʙᴜᴀᴛ ᴜsᴇʀʙᴏᴛ 🔥", callback_data="buat_ubot")],
-        ]
-        await bot.send_message(
-            get_user.id,
-            f"""
-<blockquote><b>✅ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴀɴᴅᴀ ʙᴇʀʜᴀsɪʟ ᴅɪᴋᴏɴꜰɪʀᴍᴀsɪ</b>
+            payments.update_one({"_id": data["_id"]}, {"$set": {
+                "status": "paid",
+                "paid_at": datetime.utcnow()
+            }})
 
-<b>💬 sᴇᴋᴀʀᴀɴɢ ᴀɴᴅᴀ ʙɪsᴀ ᴍᴇᴍʙᴜᴀᴛ ᴜsᴇʀʙᴏᴛ</b></blockquote>
-""",
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
-        buttons_success = [
-            [
-                InlineKeyboardButton(
-                    "👤 ᴅᴀᴘᴀᴛᴋᴀɴ ᴘʀᴏꜰɪʟ 👤", callback_data=f"profil {get_user.id}"
+            await bot.send_message(user_id, f"""
+<blockquote>✅ <b>{data['full_name']} DITAMBAHKAN KE PREMIUM</b>
+
+💸 Nominal: Rp{total:,}
+📅 Durasi: {data['bulan']} bulan
+🕒 Dibayar: {waktu_indo()}
+
+Selamat menggunakan userbot! 🚀</blockquote>
+""")
+            await bot.send_message(LOG_CHANNEL, f"""
+<blockquote><b>✅ {data['username']} ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ ᴋᴇ ᴀɴɢɢᴏᴛᴀ ᴘʀᴇᴍɪᴜᴍ</b></blockquote>
+
+<blockquote><b>💰 Nominal:</b> Rp{total:,}</blockquote>
+<blockquote><b>📅 Expired dalam:</b> {data['bulan']} bulan</blockquote>
+<blockquote><b>🕓 Waktu Pembayaran:</b> {waktu_indo()}</blockquote>
+""")
+            return
+        
+        sisa_waktu = timeout - elapsed
+        sisa_menit = sisa_waktu // 60
+        sisa_detik = sisa_waktu % 60
+        if waiting_message:
+            try:
+                await waiting_message.edit_text(
+                    f"⌛ Menunggu pembayaran...\nSisa waktu: {sisa_menit} menit {sisa_detik} detik."
                 )
-            ],
-        ]
-        await add_to_vars(client.me.id, "PREM_USERS", get_user.id)
-        now = datetime.now(timezone("Asia/Jakarta"))
-        expired = now + relativedelta(months=int(query[2]))
-        await set_expired_date(get_user.id, expired)
-        return await callback_query.edit_message_text(
-            f"""
-<blockquote><b>✅ {get_user.first_name} {get_user.last_name or ''} ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ ᴋᴇ ᴀɴɢɢᴏᴛᴀ ᴘʀᴇᴍɪᴜᴍ</b></blockquote>
-""",
-        )
-    if query[0] == "failed":
-        buttons = [
-            [
-                InlineKeyboardButton(
-                    "💳 ʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ 💳", callback_data="bayar_dulu"
-                )
-            ],
-        ]
-        await bot.send_message(
-            get_user.id,
-            """
-<b>❌ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴀɴᴅᴀ ᴛɪᴅᴀᴋ ʙɪsᴀ ᴅɪᴋᴏɴꜰɪʀᴍᴀsɪ</b>
+            except Exception:
+                pass
 
-<b>💬 sɪʟᴀʜᴋᴀɴ ʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴅᴇɴɢᴀɴ ʙᴇɴᴀʀ</b>
+        await asyncio.sleep(interval)
+        elapsed += interval
+
+    await qr_message.delete()
+    await waiting_message.delete()
+    await bot.send_message(user_id, f"""
+<blockquote><b>❌ PEMBAYARAN GAGAL</b></blockquote>
+            
+<blockquote><b>⏱️ Waktu Pembayaran selama 5 menit sudah habis</blockquote>
+<blockquote><b>💰 Noninal:</b> Rp{total:,}</blockquote>
+
+<blockquote><b>♻️ silahkan buat QRIS baru jika ingin mencoba lagi</b></blockquote>
+<blockquote><b>❗ Pastikan kamu transfer sesuai QRIS yang dikirim.</b></blockquote>
+""")
+
+@PY.CALLBACK("plus_month")
+async def plus_month(client, callback_query):
+    user_id = int(callback_query.data.split(":")[1])
+    data = payments.find_one({"user_id": user_id, "status": "draft"})
+    if not data:
+        return
+    new_bulan = data["bulan"] + 1
+    total = data["harga_dasar"] * new_bulan
+
+    payments.update_one({"_id": data["_id"]}, {"$set": {"bulan": new_bulan}})
+    await callback_query.message.edit_text(
+        f"""
+<blockquote><b>💬 sɪʟᴀʜᴋᴀɴ ᴍᴇʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴛᴇʀʟᴇʙɪʜ ᴅᴀʜᴜʟᴜ</b>
+
+🎟️ ʜᴀʀɢᴀ ᴘᴇʀʙᴜʟᴀɴ: Rp{data['harga_dasar']:,}
+
+💳 ᴍᴏᴛᴏᴅᴇ ᴘᴇᴍʙᴀʏᴀʀᴀɴ:
+ ├ Qʀɪꜱ ᴀʟʟ ᴘᴀʏᴍᴇɴᴛ 
+ 🔖 ᴛᴏᴛᴀʟ ʜᴀʀɢᴀ: Rp{total:,}
+ 🗓️ ᴘᴀᴋᴇᴛ: {new_bulan} Bulan
+
+Owner Bot: @anonyrel
+
+🛍 ᴋʟɪᴋ ᴛᴏᴍʙᴏʟ ᴋᴏɴꜰɪʀᴍᴀsɪ ᴜɴᴛᴜᴋ ᴍᴇʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ</blockquote>
 """,
-            reply_markup=InlineKeyboardMarkup(buttons),
-        )
-        buttons_failed = [
-            [
-                InlineKeyboardButton(
-                    "👤 ᴅᴀᴘᴀᴛᴋᴀɴ ᴘʀᴏꜰɪʟ 👤", callback_data=f"profil {get_user.id}"
-                )
-            ],
-        ]
-        return await callback_query.edit_message_text(
-            f"""
-<b>❌ {get_user.first_name} {get_user.last_name or ''} ᴛɪᴅᴀᴋ ᴅɪᴛᴀᴍʙᴀʜᴋᴀɴ ᴋᴇ ᴀɴɢɢᴏᴛᴀ ᴘʀᴇᴍɪᴜᴍ</b>
+        reply_markup=build_markup(user_id, new_bulan, total)
+    )
+
+@PY.CALLBACK("minus_month")
+async def minus_month(client, callback_query):
+    user_id = int(callback_query.data.split(":")[1])
+    data = payments.find_one({"user_id": user_id, "status": "draft"})
+    if not data:
+        return
+    new_bulan = max(1, data["bulan"] - 1)
+    total = data["harga_dasar"] * new_bulan
+
+    payments.update_one({"_id": data["_id"]}, {"$set": {"bulan": new_bulan}})
+    await callback_query.message.edit_text(
+        f"""
+<blockquote><b>💬 sɪʟᴀʜᴋᴀɴ ᴍᴇʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ ᴛᴇʀʟᴇʙɪʜ ᴅᴀʜᴜʟᴜ</b>
+
+🎟️ ʜᴀʀɢᴀ ᴘᴇʀʙᴜʟᴀɴ: Rp{data['harga_dasar']:,}
+
+💳 ᴍᴏᴛᴏᴅᴇ ᴘᴇᴍʙᴀʏᴀʀᴀɴ:
+ ├ Qʀɪꜱ ᴀʟʟ ᴘᴀʏᴍᴇɴᴛ 
+ 🔖 ᴛᴏᴛᴀʟ ʜᴀʀɢᴀ: Rp{total:,}
+ 🗓️ ᴘᴀᴋᴇᴛ: {new_bulan} Bulan
+
+Owner Bot: @anonyrel
+
+🛍 ᴋʟɪᴋ ᴛᴏᴍʙᴏʟ ᴋᴏɴꜰɪʀᴍᴀsɪ ᴜɴᴛᴜᴋ ᴍᴇʟᴀᴋᴜᴋᴀɴ ᴘᴇᴍʙᴀʏᴀʀᴀɴ</blockquote>
 """,
-        )
-    if query[0] == "home":
-        if get_user.id in CONFIRM_PAYMENT:
-            CONFIRM_PAYMENT.remove(get_user.id)
-            buttons_home = BTN.START(callback_query)
-            return await callback_query.edit_message_text(
-                MSG.START(callback_query),
-                reply_markup=InlineKeyboardMarkup(buttons_home),
-            )
-        else:
-            buttons_home = BTN.START(callback_query)
-            return await callback_query.edit_message_text(
-                MSG.START(callback_query),
-                reply_markup=InlineKeyboardMarkup(buttons_home),
-            )
+        reply_markup=build_markup(user_id, new_bulan, total)
+    )
