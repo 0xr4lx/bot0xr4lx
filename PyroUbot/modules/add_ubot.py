@@ -7,6 +7,7 @@ from pyrogram.enums import SentCodeType
 from pyrogram.errors import *
 from pyrogram.types import *
 from pyrogram.raw import functions
+from PyroUbot.modules.broadcastbot import add_user
 
 from PyroUbot import *
 
@@ -19,6 +20,7 @@ waktu_aktif = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 async def _(client, message): 
     buttons = BTN.START(message)
     msg = MSG.START(message)
+    add_user(message.from_user.id)
     await message.reply(msg, reply_markup=InlineKeyboardMarkup(buttons), disable_web_page_preview=True)
 
 
@@ -55,7 +57,7 @@ async def _(client, callback_query):
     premium_users, ultra_premium_users = await get_list_from_vars(client.me.id, "PREM_USERS"), await get_list_from_vars(client.me.id, "ULTRA_PREM")
     if user_id not in premium_users and user_id not in ultra_premium_users:
         buttons = [
-            [InlineKeyboardButton("⦪ ʟᴀɴᴊᴜᴛᴋᴀɴ ⦫", callback_data="bayar_dulu")],
+            [InlineKeyboardButton("⦪ ʟᴀɴᴊᴜᴛᴋᴀɴ ⦫", callback_data="bayar")],
             [InlineKeyboardButton("⦪ ᴋᴇᴍʙᴀʟɪ ⦫", callback_data=f"home {user_id}")],
         ]
         return await callback_query.edit_message_text(
