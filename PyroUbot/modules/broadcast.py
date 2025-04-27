@@ -527,7 +527,7 @@ async def _(client, message):
         setday = await get_vars(client.me.id, "SETDAY_GCAST")
         auto_off_time = datetime.fromisoformat(setday) if setday else None
 
-        for dialog in client.get_dialogs():
+        async for dialog in client.get_dialogs():
             if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
                 try:
                     await asyncio.sleep(delay)
