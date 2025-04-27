@@ -1,8 +1,12 @@
 import asyncio
 import random
+import pytz
 
 from gc import get_objects
+from datetime import datetime, timedelta
 from asyncio import sleep
+from pyrogram.enums import ChatType
+from pyrogram.errors import FloodWait
 from pyrogram.raw.functions.messages import DeleteHistory, StartBot
 from pyrogram.errors.exceptions import *
 from pyrogram.errors.exceptions.not_acceptable_406 import ChannelPrivate
@@ -34,6 +38,17 @@ __HELP__ = """
 ⊷ |on/off |text |delay |remove |limit</b></blockquote>
 """
 
+MODE = {}
+TIMER = {}
+
+def parse_timer(timer_str):
+    try:
+        start, end = timer_str.split("-")
+        start_hour, start_minute = map(int, start.replace("start:", "").split(":"))
+        end_hour, end_minute = map(int, end.replace("end:", "").split(":"))
+        return (start_hour, start_minute), (end_hour, end_minute)
+    except Exception:
+        return None, None
 
 async def limit_cmd(client, message):
     ggl = await EMO.GAGAL(client)
@@ -151,7 +166,7 @@ async def gcast_handler(client, message):
 <b>⌭ {ggl} ɢᴀɢᴀʟ : {failed} ᴄʜᴀᴛ</b>
 <b>⌭ {ktrng} ᴛʏᴘᴇ :</b> <code>{command}</code></blockquote>
 
-<blockquote><b>ᣃ࿈ ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ࿈ᣄ</b></blockquote>
+<blockquote><b>USERBOT PREM 10K/BULAN PM @anonyrel</b></blockquote>
 """
     return await message.reply(_gcs)
 
@@ -218,7 +233,7 @@ async def _(client, message):
 <blockquote><b>⌭ {brhsl} sᴜᴄᴄᴇs {done} ɢʀᴏᴜᴘ</b>
 <b>⌭ {ggl} ғᴀɪʟᴇᴅ {failed} ɢʀᴏᴜᴘ</blockquote></b>
 
-<blockquote><b>ᣃ࿈ ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ࿈ᣄ</b></blockquote>
+<blockquote><b>USERBOT PREM 10K/BULAN PM @anonyrel</b></blockquote>
 """
     return await message.reply(_gcs)
 
@@ -251,7 +266,7 @@ async def _(client, message):
         except Exception:
             pass
 
-    return await msg.edit(f"<blockquote><b>⌭ Pesan broadcast berhasil terkirim ke {done} user</blockquote></b>\n\n<blockquote><b>ᣃ࿈ ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ࿈ᣄ</b></blockquote>")
+    return await msg.edit(f"<blockquote><b>⌭ Pesan broadcast berhasil terkirim ke {done} user</blockquote></b>\n\n<blockquote><b>USERBOT PREM 10K/BULAN PM @anonyrel</b></blockquote>")
 
 
 @PY.UBOT("addbl")
@@ -273,14 +288,14 @@ async def _(client, message):
 <blockquote><b>⌭ {grp} ɢʀᴏᴜᴘ: {message.chat.title}</blockquote></b>
 <blockquote><b>⌭ {ktrn} ᴋᴇᴛ: sᴜᴅᴀʜ ᴀᴅᴀ ᴅᴀʟᴀᴍ ʟɪsᴛ</blockquote></b>
 
-<blockquote><b>ᣃ࿈ ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ࿈ᣄ</b></blockquote>
+<blockquote><b>USERBOT PREM 10K/BULAN PM @anonyrel</b></blockquote>
 """
         else:
             await add_to_vars(client.me.id, "BL_ID", chat_id)
             txt = f"""
 <blockquote><b>⌭ {grp} ɢʀᴏᴜᴘ: {message.chat.title}</blockquote></b>\n<blockquote><b>⌭ {ktrn} ᴋᴇᴛ: ʙᴇʀʜᴀsɪʟ ᴅɪ ᴛᴀᴍʙᴀʜᴋᴀɴ ᴋᴇ ᴅᴀʟᴀᴍ ʟɪsᴛ ᴊᴇᴍʙᴏᴛ</blockquote></b>
 
-<blockquote><b>ᣃ࿈ ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ࿈ᣄ</b></blockquote>
+<blockquote><b>USERBOT PREM 10K/BULAN PM @anonyrel</b></blockquote>
 """
 
         return await msg.edit(txt)
@@ -307,7 +322,7 @@ async def _(client, message):
 <blockquote><b>⌭ {grp} ɢʀᴏᴜᴘ: {message.chat.title}</blockquote></b>
 <blockquote><b>⌭ {ktrn} ᴋᴇᴛ: ᴛɪᴅᴀᴋ ᴀᴅᴀ ᴅᴀʟᴀᴍ ʟɪsᴛ </b></blockquote>
 
-<blockquote><b>ᣃ࿈ ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ࿈ᣄ</b></blockquote>
+<blockquote><b>USERBOT PREM 10K/BULAN PM @anonyrel</b></blockquote>
 """
         else:
             await remove_from_vars(client.me.id, "BL_ID", chat_id)
@@ -315,7 +330,7 @@ async def _(client, message):
 <blockquote><b>⌭ {grp} ɢʀᴏᴜᴘ: {message.chat.title}</blockquote ></b>
 <blockquote><b>⌭ {ktrn} ᴋᴇᴛ: ʙᴇʀʜᴀsɪʟ ᴅɪ ʜᴀᴘᴜs ᴋᴇ ᴅᴀʟᴀᴍ ʟɪsᴛ </blockquote></b>
 
-<blockquote><b>ᣃ࿈ ᴜsᴇʀʙᴏᴛ ᴘʀᴇᴍɪᴜᴍ ࿈ᣄ</b></blockquote>
+<blockquote><b>USERBOT PREM 10K/BULAN PM @anonyrel</b></blockquote>
 """
 
         return await msg.edit(response)
@@ -430,145 +445,113 @@ async def _(client, inline_query):
 AG = []
 LT = []
 
-
 @PY.UBOT("autobc")
 @PY.TOP_CMD
 async def _(client, message):
     prs = await EMO.PROSES(client)
     brhsl = await EMO.BERHASIL(client)
-    bcs = await EMO.BROADCAST(client)
-    mng = await EMO.MENUNGGU(client)
-    ggl = await EMO.GAGAL(client)   
-    msg = await message.reply(f"{prs}proceꜱꜱing...")
+    ggl = await EMO.GAGAL(client)
+
+    msg = await message.reply(f"{prs}processing...")
+
     type, value = extract_type_and_text(message)
-    auto_text_vars = await get_vars(client.me.id, "AUTO_TEXT")
+    now = datetime.now(pytz.timezone("Asia/Jakarta"))
 
     if type == "on":
-        if not auto_text_vars:
-            return await msg.edit(
-                f"⌭ {ggl} harap ꜱetting text terlebih dahulu"
-            )
-
         if client.me.id not in AG:
-            await msg.edit(f"⌭ {brhsl}auto gcaꜱt di aktifkan")
-
             AG.append(client.me.id)
-
-            done = 0
-            while client.me.id in AG:
-                delay = await get_vars(client.me.id, "DELAY_GCAST") or 1
-                blacklist = await get_list_from_vars(client.me.id, "BL_ID")
-                txt = random.choice(auto_text_vars)
-
-                group = 0
-                async for dialog in client.get_dialogs():
-                    if (
-                        dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
-                        and dialog.chat.id not in blacklist
-                    ):
-                        try:
-                            await asyncio.sleep(1)
-                            await client.send_message(dialog.chat.id, f"{txt} ")
-                            group += 1
-                        except FloodWait as e:
-                            await asyncio.sleep(e.value)
-                            await client.send_message(dialog.chat.id, f"{txt} ")
-                            group += 1
-                        except Exception:
-                            pass
-
-                if client.me.id not in AG:
-                    return
-
-                done += 1
-                await msg.reply(f"""
-⌭ {bcs}auto_gcaꜱt done
-⌭ putaran {done}
-⌭ {brhsl}ꜱucceꜱ {group} group
-⌭ {mng}wait {delay} minuteꜱ
-""",
-                    quote=True,
-                )
-                await asyncio.sleep(int(60 * int(delay)))
+            await msg.edit(f"{brhsl}Auto Broadcast diaktifkan.")
         else:
-            return await msg.delete()
+            await msg.edit(f"{ggl}Auto Broadcast sudah aktif.")
 
     elif type == "off":
         if client.me.id in AG:
             AG.remove(client.me.id)
-            return await msg.edit(f"⌭ {brhsl}auto gcast dinonaktifkan")
+            await msg.edit(f"{brhsl}Auto Broadcast dinonaktifkan.")
         else:
-            return await msg.delete()
-
-    elif type == "text":
-        if not value:
-            return await msg.edit(
-                f"⌭ {ggl}{message.text.split()[0]} text - [value]"
-            )
-        await add_auto_text(client, value)
-        return await msg.edit(f"⌭ {brhsl}berhasil di simpan")
+            await msg.edit(f"{ggl}Auto Broadcast belum aktif.")
 
     elif type == "delay":
-        if not int(value):
-            return await msg.edit(
-                f"{ggl}{message.text.split()[0]} delay - [value]"
-            )
+        if not value.isdigit():
+            return await msg.edit(f"{ggl}Masukkan angka delay dalam detik.")
         await set_vars(client.me.id, "DELAY_GCAST", value)
-        return await msg.edit(
-            f"{brhsl}barhasil ke setting {value} menit"
-        )
+        await msg.edit(f"{brhsl}Delay antar grup diatur {value} detik.")
 
-    elif type == "remove":
-        if not value:
-            return await msg.edit(
-                f"{ggl}{message.text.split()[0]} remove - [value]"
-            )
-        if value == "all":
-            await set_vars(client.me.id, "AUTO_TEXT", [])
-            return await msg.edit(f"{brhsl}semua text berhasil dihapus")
+    elif type == "interval":
+        if not value.isdigit():
+            return await msg.edit(f"{ggl}Masukkan angka interval dalam menit.")
+        await set_vars(client.me.id, "INTERVAL_GCAST", value)
+        await msg.edit(f"{brhsl}Interval antar sesi diatur {value} menit.")
+
+    elif type == "setday":
         try:
-            value = int(value) - 1
-            auto_text_vars.pop(value)
-            await set_vars(client.me.id, "AUTO_TEXT", auto_text_vars)
-            return await msg.edit(
-                f"{brhsl}text ke {value+1} berhasil dihapus"
-            )
-        except Exception as error:
-            return await msg.edit(str(error))
+            date_str, time_str = value.split()
+            day, month, year = map(int, date_str.split("/"))
+            hour, minute = map(int, time_str.split(":"))
+            expire_time = datetime(year, month, day, hour, minute, tzinfo=pytz.timezone("Asia/Jakarta"))
+            await set_vars(client.me.id, "SETDAY_GCAST", expire_time.isoformat())
+            await msg.edit(f"{brhsl}Waktu auto-off diatur ke {expire_time.strftime('%d/%m/%Y %H:%M')}")
+        except Exception:
+            await msg.edit(f"{ggl}Format salah! Gunakan: .autobc setday DD/MM/YYYY HH:MM")
 
-    elif type == "list":
-        if not auto_text_vars:
-            return await msg.edit(f"{ggl}auto gcast text kosong")
-        txt = "⌭ daftar auto gcast text\n\n"
-        for num, x in enumerate(auto_text_vars, 1):
-            txt += f"{num}> {x}\n\n"
-        txt += f"\nuntuk menghapus text:\n{message.text.split()[0]} remove [angka/all]"
-        return await msg.edit(txt)
+    elif type == "time":
+        await msg.edit(f"⌭ Waktu server saat ini:\n<code>{now.strftime('%d/%m/%Y %H:%M:%S')}</code>")
 
-    elif type == "limit":
-        if value == "off":
-            if client.me.id in LT:
-                LT.remove(client.me.id)
-                return await msg.edit(f"{brhsl}auto cek limit dinonaktifkan")
-            else:
-                return await msg.delete()
+    elif type == "status":
+        delay = await get_vars(client.me.id, "DELAY_GCAST") or "-"
+        interval = await get_vars(client.me.id, "INTERVAL_GCAST") or "-"
+        setday = await get_vars(client.me.id, "SETDAY_GCAST")
+        auto_off_time = datetime.fromisoformat(setday) if setday else None
+        status_online = client.me.id in AG
 
-        elif value == "on":
-            if client.me.id not in LT:
-                LT.append(client.me.id)
-                await msg.edit(f"{brhsl}auto cek limit started")
-                while client.me.id in LT:
-                    for x in range(2):
-                        await limit_cmd(client, message)
-                        await asyncio.sleep(5)
-                    await asyncio.sleep(1200)
-            else:
-                return await msg.delete()
-        else:
-             return await msg.edit(f"{ggl}{message.text.split()[0]} limit - [value]")
+        await msg.edit(f"""
+<blockquote>⭐ <b>Status Modul AutoBC</b> ⭐
+
+╭━ <b>Info Pengaturan</b>
+├ 📶 <b>Status</b> : {'🟢' if status_online else '🔴'} {'Online' if status_online else 'Offline'}
+├ 🕒 <b>Delay</b> : {delay}s/grup
+├ ⏳ <b>Interval</b> : {interval}m
+├ 📴 <b>Auto-off</b> : {(auto_off_time.strftime('%d/%m/%Y %H:%M') if auto_off_time else '-')}
+╰ 🕰️ <b>TimeNow Server</b> : {now.strftime('%d/%m/%Y %H:%M')}
+</blockquote>""")
+
+    elif type == "broadcast":
+        if not message.reply_to_message:
+            return await msg.edit(f"{ggl}Balas pesan untuk dibroadcast.")
+
+        blacklist = await get_list_from_vars(client.me.id, "BL_ID")
+        sent = 0
+        failed = 0
+        delay = int(await get_vars(client.me.id, "DELAY_GCAST") or 1)
+        interval = int(await get_vars(client.me.id, "INTERVAL_GCAST") or 0)
+        setday = await get_vars(client.me.id, "SETDAY_GCAST")
+        auto_off_time = datetime.fromisoformat(setday) if setday else None
+
+        for dialog in client.get_dialogs():
+            if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
+                try:
+                    await asyncio.sleep(delay)
+                    await client.forward_messages(dialog.chat.id, message.reply_to_message.id, message.chat.id)
+                    sent += 1
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                except Exception:
+                    failed += 1
+
+        await msg.edit(f"""
+<blockquote>⭐ <b>Hasil Broadcast</b> ⭐
+
+╭━ <b>Ringkasan</b>
+├ ✅ <b>Status</b> : {'Selesai' if sent else 'Gagal'}
+├ 📬 <b>Berhasil</b> : {sent} grup
+├ ❌ <b>Gagal</b> : {failed} grup
+├ 🕒 <b>Delay</b> : {delay}s/grup
+├ ⏳ <b>Interval</b> : {interval}m
+├ 📴 <b>Auto-off</b> : {(auto_off_time.strftime('%d/%m/%Y %H:%M') if auto_off_time else '-')}
+╰ 🕰️ <b>TimeNow</b> : {now.strftime('%d/%m/%Y %H:%M')}</blockquote>""")
 
     else:
-        return await msg.edit(f"{ggl}{message.text.split()[0]} [query] - [value]")
+        await msg.edit(f"⌭ {ggl}Perintah tidak dikenal. Gunakan .autobc [on/off/delay/interval/setday/time/status/broadcast]")
 
 
 async def add_auto_text(client, text):
