@@ -1,6 +1,6 @@
 import asyncio
 import random
-import pytz
+from pytz import timezone
 
 from gc import get_objects
 from datetime import datetime, timedelta
@@ -40,6 +40,8 @@ __HELP__ = """
 
 MODE = {}
 TIMER = {}
+
+wib = timezone('Asia/Jakarta')
 
 def parse_timer(timer_str):
     try:
@@ -445,115 +447,210 @@ async def _(client, inline_query):
 AG = []
 LT = []
 
+
 @PY.UBOT("autobc")
 @PY.TOP_CMD
 async def _(client, message):
     prs = await EMO.PROSES(client)
     brhsl = await EMO.BERHASIL(client)
-    ggl = await EMO.GAGAL(client)
-
-    msg = await message.reply(f"{prs}processing...")
-
+    bcs = await EMO.BROADCAST(client)
+    mng = await EMO.MENUNGGU(client)
+    ggl = await EMO.GAGAL(client)   
+    msg = await message.reply(f"{prs}proceꜱꜱing...")
     type, value = extract_type_and_text(message)
-    now = datetime.now(pytz.timezone("Asia/Jakarta"))
+    auto_text_vars = await get_vars(client.me.id, "AUTO_TEXT")
+    auto_broadcast_active = False
+    auto_off_time = None
 
     if type == "on":
+        if not auto_text_vars:
+            return await msg.edit(f"⌭ {ggl} harap ꜱetting text terlebih dahulu")
+
         if client.me.id not in AG:
+            await msg.edit(f"⌭ {brhsl}Auto GCast diaktifkan, mode auto-broadcast aktif.")
+
             AG.append(client.me.id)
-            await msg.edit(f"{brhsl}Auto Broadcast diaktifkan.")
-        else:
-            await msg.edit(f"{ggl}Auto Broadcast sudah aktif.")
+            auto_broadcast_active = True  # Set auto broadcast aktif
 
+        # Menyimpan informasi mode aktif
+            await msg.reply(f"Auto-broadcast diaktifkan. Ketik '.autobc broadcast' untuk memulai broadcast.")
+
+        else:
+            await msg.edit(f"⌭ {brhsl}Auto GCast sudah aktif.")
     elif type == "off":
-        if client.me.id in AG:
-            AG.remove(client.me.id)
-            await msg.edit(f"{brhsl}Auto Broadcast dinonaktifkan.")
+        if auto_broadcast_active:
+            auto_broadcast_active = False  # Nonaktifkan auto-broadcast
+            await msg.edit(f"⌭ {brhsl}Auto-broadcast dimatikan.")
         else:
-            await msg.edit(f"{ggl}Auto Broadcast belum aktif.")
+            await msg.edit(f"⌭ {brhsl}Auto-broadcast belum diaktifkan, tidak ada yang dimatikan.")
 
+# Perintah '.autobc delay' untuk mengatur delay antar grup (dalam detik)
     elif type == "delay":
-        if not value.isdigit():
-            return await msg.edit(f"{ggl}Masukkan angka delay dalam detik.")
-        await set_vars(client.me.id, "DELAY_GCAST", value)
-        await msg.edit(f"{brhsl}Delay antar grup diatur {value} detik.")
+        try:
+            delay_value = float(value)  # Ubah value jadi float supaya bisa 0.8, 1.5, dst
+            if delay_value <= 0:
+                return await msg.edit(f"{ggl} Delay harus lebih dari 0 detik.")
+        except ValueError:
+            return await msg.edit(f"{ggl}Masukkan angka delay dalam detik, misalnya 0.8.")
 
+        await set_vars(client.me.id, "DELAY_GCAST", str(delay_value))
+        await msg.edit(f"{brhsl}Delay antar grup diatur {delay_value} detik.")
+
+# Perintah '.autobc interval' untuk mengatur interval antar sesi (dalam menit)
     elif type == "interval":
         if not value.isdigit():
             return await msg.edit(f"{ggl}Masukkan angka interval dalam menit.")
         await set_vars(client.me.id, "INTERVAL_GCAST", value)
         await msg.edit(f"{brhsl}Interval antar sesi diatur {value} menit.")
 
+# Perintah '.autobc setday' untuk mengatur waktu auto-off broadcast
     elif type == "setday":
         try:
-            date_str, time_str = value.split()
-            day, month, year = map(int, date_str.split("/"))
-            hour, minute = map(int, time_str.split(":"))
-            expire_time = datetime(year, month, day, hour, minute, tzinfo=pytz.timezone("Asia/Jakarta"))
-            await set_vars(client.me.id, "SETDAY_GCAST", expire_time.isoformat())
-            await msg.edit(f"{brhsl}Waktu auto-off diatur ke {expire_time.strftime('%d/%m/%Y %H:%M')}")
-        except Exception:
-            await msg.edit(f"{ggl}Format salah! Gunakan: .autobc setday DD/MM/YYYY HH:MM")
+        # Mendapatkan waktu yang diberikan pengguna dalam format DD/MM/YYYY HH:MM
+            setday_str = message.text.split(maxsplit=2)[2] 
+            auto_off_time = datetime.strptime(setday_str, "%d/%m/%Y %H:%M")
 
+            auto_off_time = wib.localize(auto_off_time)
+
+            await set_vars(client.me.id, "SETDAY_GCAST", auto_off_time.isoformat())
+            await msg.edit(f"⌭ {brhsl}Waktu Auto-off broadcast diatur ke {auto_off_time.strftime('%d/%m/%Y %H:%M')}.")
+        except (IndexError, ValueError):
+            await msg.edit(f"⌭ {ggl} Format waktu salah! Gunakan format DD/MM/YYYY HH:MM.")
+
+# Perintah '.autobc time' untuk menampilkan waktu server
     elif type == "time":
-        await msg.edit(f"⌭ Waktu server saat ini:\n<code>{now.strftime('%d/%m/%Y %H:%M:%S')}</code>")
+           now = datetime.now(wib)
+           await msg.edit(f"⌭ {brhsl}Waktu server saat ini: {now.strftime('%d/%m/%Y %H:%M')}")
 
+# Perintah '.autobc status' untuk menampilkan status pengaturan modul autobc
     elif type == "status":
-        delay = await get_vars(client.me.id, "DELAY_GCAST") or "-"
-        interval = await get_vars(client.me.id, "INTERVAL_GCAST") or "-"
-        setday = await get_vars(client.me.id, "SETDAY_GCAST")
-        auto_off_time = datetime.fromisoformat(setday) if setday else None
-        status_online = client.me.id in AG
+          setday_str = await get_vars(client.me.id, "SETDAY_GCAST")
+          delay = await get_vars(client.me.id, "DELAY_GCAST") or "-"
+          interval = await get_vars(client.me.id, "INTERVAL_GCAST") or "-"
+          status_online = client.me.id in AG
+          emoji_status = "🟢" if status_online else "🔴"  # Menampilkan emoji online/offline
+     
+          setday_str = await get_vars(client.me.id, "SETDAY_GCAST")
+          if setday_str:
+              auto_off_time = datetime.fromisoformat(setday_str)
+              auto_off_display = auto_off_time.strftime('%d/%m/%Y %H:%M')
+          else:
+              auto_off_display = "-"
+    # Format waktu saat ini untuk server time
+          server_time = datetime.now(wib)
 
-        await msg.edit(f"""
+    # Mengonversi auto_off_time jika ada, jika tidak tampilkan "-"
+          auto_off_display = auto_off_time.strftime('%d/%m/%Y %H:%M') if auto_off_time else "-"
+
+    # Menyusun dan menampilkan status modul AutoBC
+          await msg.edit(f"""
 <blockquote>⭐ <b>Status Modul AutoBC</b> ⭐
 
 ╭━ <b>Info Pengaturan</b>
-├ 📶 <b>Status</b> : {'🟢' if status_online else '🔴'} {'Online' if status_online else 'Offline'}
+├ 📶 <b>Status</b> : {emoji_status} {"Online" if status_online else "Offline"}
 ├ 🕒 <b>Delay</b> : {delay}s/grup
 ├ ⏳ <b>Interval</b> : {interval}m
-├ 📴 <b>Auto-off</b> : {(auto_off_time.strftime('%d/%m/%Y %H:%M') if auto_off_time else '-')}
-╰ 🕰️ <b>TimeNow Server</b> : {now.strftime('%d/%m/%Y %H:%M')}
-</blockquote>""")
+├ 📴 <b>Auto-off</b> : {auto_off_display}
+╰ 🕰️ <b>TimeNow Server</b> : {server_time.strftime('%d/%m/%Y %H:%M')}</blockquote>
+""")
 
+# Perintah '.autobc broadcast' untuk memulai broadcast jika mode aktif
     elif type == "broadcast":
-        if not message.reply_to_message:
-            return await msg.edit(f"{ggl}Balas pesan untuk dibroadcast.")
+        if client.me.id not in AG:
+            return await msg.edit(f"⌭ {ggl}Auto-broadcast belum diaktifkan. Gunakan '.autobc on' dulu.")
 
-        blacklist = await get_list_from_vars(client.me.id, "BL_ID")
-        sent = 0
-        failed = 0
-        delay = int(await get_vars(client.me.id, "DELAY_GCAST") or 1)
+       
+    # Ambil data yang dibutuhkan
+        setday_str = await get_vars(client.me.id, "SETDAY_GCAST")
+        delay = float(await get_vars(client.me.id, "DELAY_GCAST") or 1)
         interval = int(await get_vars(client.me.id, "INTERVAL_GCAST") or 0)
-        setday = await get_vars(client.me.id, "SETDAY_GCAST")
-        auto_off_time = datetime.fromisoformat(setday) if setday else None
+        blacklist = await get_list_from_vars(client.me.id, "BL_ID")
+        now = datetime.now(wib)
 
-        async for dialog in client.get_dialogs():
-            if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
-                try:
-                    await asyncio.sleep(delay)
-                    await client.forward_messages(dialog.chat.id, message.reply_to_message.id, message.chat.id)
-                    sent += 1
-                except FloodWait as e:
-                    await asyncio.sleep(e.value)
-                except Exception:
-                    failed += 1
+        if not message.reply_to_message:
+                  return await msg.edit("⌭ Balas pesan (teks, gambar, atau dokumen) yang ingin kamu broadcast.")
 
-        await msg.edit(f"""
-<blockquote>⭐ <b>Hasil Broadcast</b> ⭐
+# Validasi konten
+        text = message.reply_to_message.text or message.reply_to_message.caption
+        if not text and not message.reply_to_message.media:
+            return await msg.edit("⌭ Pesan tidak memiliki konten yang dapat dibroadcast.")
+        round_cound = 1
 
+        while True:
+            now = datetime.now(wib)
+    # Cek auto_off
+            if setday_str:
+                auto_off_time = datetime.fromisoformat(setday_str)
+                if now >= auto_off_time:
+                    return await msg.edit(f"⌭ {brhsl}Auto-broadcast telah dimatikan, waktu auto-off tercapai.")
+
+
+    # Persiapan
+            total_berhasil = 0
+            total_gagal = 0
+            group = 0
+
+            async for dialog in client.get_dialogs():
+                if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
+                   try:
+                       await asyncio.sleep(delay)
+                       await message.reply_to_message.forward(dialog.chat.id)
+                       group += 1
+                       total_berhasil += 1
+                   except FloodWait as e:
+                       await asyncio.sleep(e.value)
+                       await message.reply_to_message.forward(dialog.chat.id)
+                       group += 1
+                       total_berhasil += 1
+                   except Exception as e:
+                       total_gagal += 1
+                       print(f"Error while sending message: {e}")
+                       continue
+
+            server_time = datetime.now(wib)
+
+            await message.reply(f"""
+<blockquote><b>Hasil Broadcast</b></blockquote>
+                        
+<blockquote>
 ╭━ <b>Ringkasan</b>
-├ ✅ <b>Status</b> : {'Selesai' if sent else 'Gagal'}
-├ 📬 <b>Berhasil</b> : {sent} grup
-├ ❌ <b>Gagal</b> : {failed} grup
+├ ✅ <b>Status</b> : Selesai
+├ 📬 <b>Berhasil</b> : {total_berhasil} grup
+├ ❌ <b>Gagal</b> : {total_gagal} grup
 ├ 🕒 <b>Delay</b> : {delay}s/grup
-├ ⏳ <b>Interval</b> : {interval}m
-├ 📴 <b>Auto-off</b> : {(auto_off_time.strftime('%d/%m/%Y %H:%M') if auto_off_time else '-')}
-╰ 🕰️ <b>TimeNow</b> : {now.strftime('%d/%m/%Y %H:%M')}</blockquote>""")
+├ ⏳ <b>Interval Delay</b> : {interval}m
+├ ⚙️<b>Interval Ke</b> : {round_cound}
+╰ 🕰️ <b>TimeNow</b> : {server_time.strftime('%d/%m/%Y %H:%M')}</blockquote>
+""", quote=True)
 
+    # Tunggu interval jika ada
+            if interval > 0:
+                round_cound += 1
+                await asyncio.sleep(interval * 60)
+            else:
+                break 
     else:
-        await msg.edit(f"⌭ {ggl}Perintah tidak dikenal. Gunakan .autobc [on/off/delay/interval/setday/time/status/broadcast]")
+        return await msg.edit(f"""
+```Menu Autobc
+.autobc on
+> Mengaktifkan Modul autobc
+.autobc off
+> Menonaktifkan Modil autobc
+.autobc delay
+> Mengatur delay mengirim pesan antar grup
+.autobc interval
+> Mengatur interval antar sesi broadcast berikutnya
+.autobc setday [Tanggal] [Waktu]
+> Mengautr Auto-Off untuk broadcast (format DD/MM/YYYY HH:MM )
+.autobc time
+> Melihat waktu server
+.autobc status
+> Menampilkan status pengaturan Autobc            
+.autobc broadcast
+> Memulai broadcast```
+    """)
 
-
+# Perintah '.autobc off' untuk menonaktifkan mode auto-broadcast
 async def add_auto_text(client, text):
     auto_text = await get_vars(client.me.id, "AUTO_TEXT") or []
     auto_text.append(text)
