@@ -639,13 +639,15 @@ async def _(client, message):
 .autobc on
 > Mengaktifkan Modul autobc
 .autobc off
-> Menonaktifkan Modil autobc
+> Menonaktifkan Modul autobc
 .autobc delay
 > Mengatur delay mengirim pesan antar grup
 .autobc interval
 > Mengatur interval antar sesi broadcast berikutnya
 .autobc setday [Tanggal] [Waktu]
-> Mengautr Auto-Off untuk broadcast (format DD/MM/YYYY HH:MM )
+> Mengatur Auto-Off untuk broadcast (format DD/MM/YYYY HH:MM )
+.autobc unsetday
+> Menonaktifkan Auto Off
 .autobc time
 > Melihat waktu server
 .autobc status
