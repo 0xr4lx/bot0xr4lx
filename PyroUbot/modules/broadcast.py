@@ -518,7 +518,7 @@ async def _(client, message):
             await msg.edit(f"⌭ {ggl} Format waktu salah! Gunakan format DD/MM/YYYY HH:MM.")
        
     elif type == "unsetday":
-        await del_vars(client.me.id, "SETDAY_GCAST")
+        await set_vars(client.me.id, "SETDAY_GCAST", "")
         await msg.edit(f"⌭ {brhsl}Auto-off dinonaktifkan. Auto-broadcast tidak akan berhenti otomatis.")
 
 # Perintah '.autobc time' untuk menampilkan waktu server
