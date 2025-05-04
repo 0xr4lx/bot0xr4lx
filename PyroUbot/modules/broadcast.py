@@ -42,6 +42,7 @@ MODE = {}
 TIMER = {}
 
 wib = timezone('Asia/Jakarta')
+auto_broadcast_active = False
 
 def parse_timer(timer_str):
     try:
@@ -459,7 +460,7 @@ async def _(client, message):
     msg = await message.reply(f"{prs}proceꜱꜱing...")
     type, value = extract_type_and_text(message)
     auto_text_vars = await get_vars(client.me.id, "AUTO_TEXT")
-    auto_broadcast_active = False
+    global  auto_broadcast_active
     auto_off_time = None
 
     if type == "on":
@@ -581,13 +582,22 @@ async def _(client, message):
         round_cound = 1
 
         while True:
-            now = datetime.now(wib)
+            if not  auto_broadcast_active:
+                return await message.reply("⌭ Auto-broadcast dihentikan secara manual.")
+            
+            for i in range(interval * 60):
+                now = datetime.now(wib)
     # Cek auto_off
             if setday_str:
                 auto_off_time = datetime.fromisoformat(setday_str)
+                auto_off_time = wib.localize(auto_off_time) if auto_off_time.tzinfo is None else auto_off_time
                 if now >= auto_off_time:
-                    return await msg.edit(f"⌭ {brhsl}Auto-broadcast telah dimatikan, waktu auto-off tercapai.")
-
+                    await message.reply(f"""
+ <blockquote>Auto-Off Aktif!
+Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
+                                        
+""")
+                break
 
     # Persiapan
             total_berhasil = 0
