@@ -464,9 +464,6 @@ async def _(client, message):
     auto_off_time = None
 
     if type == "on":
-        if not auto_text_vars:
-            return await msg.edit(f"⌭ {ggl} harap ꜱetting text terlebih dahulu")
-
         if client.me.id not in AG:
             await msg.edit(f"⌭ {brhsl}Auto GCast diaktifkan, mode auto-broadcast aktif.")
 
@@ -582,22 +579,22 @@ async def _(client, message):
         round_cound = 1
 
         while True:
-            if client.me.id not in AG:
+            if not  auto_broadcast_active:
                 return await message.reply("⌭ Auto-broadcast dihentikan secara manual.")
             
             for i in range(interval * 60):
                 now = datetime.now(wib)
-    # Cek auto_off
-            if setday_str:
-                auto_off_time = datetime.fromisoformat(setday_str)
-                auto_off_time = wib.localize(auto_off_time) if auto_off_time.tzinfo is None else auto_off_time
-                if now >= auto_off_time:
-                    await message.reply(f"""
+                
+                if setday_str:
+                    auto_off_time = datetime.fromisoformat(setday_str)
+                    auto_off_time = wib.localize(auto_off_time) if auto_off_time.tzinfo is None else auto_off_time
+                    if now >= auto_off_time:
+                        await message.reply(f"""
  <blockquote>Auto-Off Aktif!
 Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
                                         
 """)
-                break
+                        break
 
     # Persiapan
             total_berhasil = 0
