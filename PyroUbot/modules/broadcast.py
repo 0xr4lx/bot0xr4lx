@@ -582,7 +582,7 @@ async def _(client, message):
         round_cound = 1
 
         while True:
-            if not  auto_broadcast_active:
+            if client.me.id not in AG:
                 return await message.reply("⌭ Auto-broadcast dihentikan secara manual.")
             
             for i in range(interval * 60):
