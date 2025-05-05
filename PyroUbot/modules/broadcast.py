@@ -581,7 +581,6 @@ async def _(client, message):
         while True:
             if not  auto_broadcast_active:
                 return await message.reply("⌭ Auto-broadcast dihentikan secara manual.")
-            
             for i in range(interval * 60):
                 now = datetime.now(wib)
                 
@@ -589,12 +588,16 @@ async def _(client, message):
                     auto_off_time = datetime.fromisoformat(setday_str)
                     auto_off_time = wib.localize(auto_off_time) if auto_off_time.tzinfo is None else auto_off_time
                     if now >= auto_off_time:
-                        await message.reply(f"""
+                        if client.me.id in AG:
+                            AG.remove(client.me.id)
+                            auto_broadcast_active = False
+                            await message.reply(f"""
  <blockquote>Auto-Off Aktif!
 Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
                                         
 """)
-                        break
+                            return
+                await asyncio.sleep(1)
 
     # Persiapan
             total_berhasil = 0
@@ -603,19 +606,23 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
 
             async for dialog in client.get_dialogs():
                 if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
+                   print(f"Mencoba kirim ke: {dialog.chat.title} ({dialog.chat.id})")
                    try:
                        await asyncio.sleep(delay)
-                       await message.reply_to_message.forward(dialog.chat.id)
+                       await message.reply_to_message.copy(dialog.chat.id)
+                       print(f"✅ Berhasil kirim ke: {dialog.chat.title}")
                        group += 1
                        total_berhasil += 1
                    except FloodWait as e:
+                       print(f"⏱️ FloodWait {e.value} detik untuk: {dialog.chat.title}")
                        await asyncio.sleep(e.value)
-                       await message.reply_to_message.forward(dialog.chat.id)
+                       await message.reply_to_message.copy(dialog.chat.id)
+                       print(f"✅ Setelah FloodWait: Berhasil kirim ke {dialog.chat.title}")
                        group += 1
                        total_berhasil += 1
                    except Exception as e:
+                       print(f"❌ Gagal kirim ke {dialog.chat.title} ({dialog.chat.id}): {e}")
                        total_gagal += 1
-                       print(f"Error while sending message: {e}")
                        continue
 
             server_time = datetime.now(wib)
