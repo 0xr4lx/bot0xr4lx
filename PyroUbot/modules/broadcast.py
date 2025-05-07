@@ -42,7 +42,8 @@ MODE = {}
 TIMER = {}
 
 wib = timezone('Asia/Jakarta')
-auto_broadcast_active = False
+status = {"auto_broadcast_active": False}
+
 
 def parse_timer(timer_str):
     try:
@@ -460,7 +461,6 @@ async def _(client, message):
     msg = await message.reply(f"{prs}proceꜱꜱing...")
     type, value = extract_type_and_text(message)
     auto_text_vars = await get_vars(client.me.id, "AUTO_TEXT")
-    global  auto_broadcast_active
     auto_off_time = None
 
     if type == "on":
@@ -468,7 +468,7 @@ async def _(client, message):
             await msg.edit(f"⌭ {brhsl}Auto GCast diaktifkan, mode auto-broadcast aktif.")
 
             AG.append(client.me.id)
-            auto_broadcast_active = True  # Set auto broadcast aktif
+            status["auto_broadcast_active"] = True # Set auto broadcast aktif
 
         # Menyimpan informasi mode aktif
             await msg.reply(f"Auto-broadcast diaktifkan. Ketik '.autobc broadcast' untuk memulai broadcast.")
@@ -579,26 +579,28 @@ async def _(client, message):
         round_cound = 1
 
         while True:
-            if not  auto_broadcast_active:
-                return await message.reply("⌭ Auto-broadcast dihentikan secara manual.")
-            for i in range(interval * 60):
-                now = datetime.now(wib)
-                
-                if setday_str:
+            if setday_str:
+                try:
+                    print(f"🔍 SETDAY_GCAST: {setday_str}")
                     auto_off_time = datetime.fromisoformat(setday_str)
                     auto_off_time = wib.localize(auto_off_time) if auto_off_time.tzinfo is None else auto_off_time
+                    now = datetime.now(wib)
+                    print(f"🕒 Sekarang: {now}, AutoOff: {auto_off_time}")
                     if now >= auto_off_time:
                         if client.me.id in AG:
                             AG.remove(client.me.id)
-                            auto_broadcast_active = False
-                            await message.reply(f"""
- <blockquote>Auto-Off Aktif!
-Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
-                                        
-""")
-                            return
-                await asyncio.sleep(1)
-
+                        status["auto_broadcast_active"] = False
+                        await message.reply("""
+<blockquote>🕒 Auto-Off Aktif!
+Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off.</blockquote>
+""", quote=True)
+                        return
+                except Exception as e:
+                    print(f"❗ Gagal parsing SETDAY_GCAST: {e}")
+      
+            if not status["auto_broadcast_active"]:
+                return await message.reply("⌭ Auto-broadcast dihentikan secara manual.")
+    
     # Persiapan
             total_berhasil = 0
             total_gagal = 0
@@ -606,24 +608,23 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
 
             async for dialog in client.get_dialogs():
                 if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
-                   print(f"Mencoba kirim ke: {dialog.chat.title} ({dialog.chat.id})")
-                   try:
-                       await asyncio.sleep(delay)
-                       await message.reply_to_message.copy(dialog.chat.id)
-                       print(f"✅ Berhasil kirim ke: {dialog.chat.title}")
-                       group += 1
-                       total_berhasil += 1
-                   except FloodWait as e:
-                       print(f"⏱️ FloodWait {e.value} detik untuk: {dialog.chat.title}")
-                       await asyncio.sleep(e.value)
-                       await message.reply_to_message.copy(dialog.chat.id)
-                       print(f"✅ Setelah FloodWait: Berhasil kirim ke {dialog.chat.title}")
-                       group += 1
-                       total_berhasil += 1
-                   except Exception as e:
-                       print(f"❌ Gagal kirim ke {dialog.chat.title} ({dialog.chat.id}): {e}")
-                       total_gagal += 1
-                       continue
+                    try:
+                        await asyncio.sleep(delay)
+                        await message.reply_to_message.copy(dialog.chat.id)
+                        print(f"✅ Berhasil kirim ke: {dialog.chat.title}")
+                        group += 1
+                        total_berhasil += 1
+                    except FloodWait as e:
+                        print(f"⏱️ FloodWait {e.value} detik untuk: {dialog.chat.title}")
+                        await asyncio.sleep(e.value)
+                        await message.reply_to_message.copy(dialog.chat.id)
+                        print(f"✅ Setelah FloodWait: Berhasil kirim ke {dialog.chat.title}")
+                        group += 1
+                        total_berhasil += 1
+                    except Exception as e:
+                        print(f"❌ Gagal kirim ke {dialog.chat.title} ({dialog.chat.id}): {e}")
+                        total_gagal += 1
+                        continue
 
             server_time = datetime.now(wib)
 
@@ -644,6 +645,25 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
     # Tunggu interval jika ada
             if interval > 0:
                 round_cound += 1
+                if setday_str:
+                    try:
+                        print(f"🔍 SETDAY_GCAST: {setday_str}")
+                        auto_off_time = datetime.fromisoformat(setday_str)
+                        auto_off_time = wib.localize(auto_off_time) if auto_off_time.tzinfo is None else auto_off_time
+                        now = datetime.now(wib)
+                        print(f"🕒 Sekarang: {now}, AutoOff: {auto_off_time}")
+                        if now >= auto_off_time:
+                            if client.me.id in AG:
+                                AG.remove(client.me.id)
+                            status["auto_broadcast_active"] = False
+                            await message.reply("""
+<blockquote>🕒 Auto-Off Aktif!
+Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off.</blockquote>
+""", quote=True)
+                            return
+                    except Exception as e:
+                        print(f"❗ Gagal parsing SETDAY_GCAST: {e}")
+                
                 await asyncio.sleep(interval * 60)
             else:
                 break 
@@ -667,7 +687,7 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off</blockquote>
 .autobc status
 > Menampilkan status pengaturan Autobc            
 .autobc broadcast
-> Memulai broadcast```
+> Memulai broadcast (reply pesan yang mau di broadcast)```
     """)
 
 # Perintah '.autobc off' untuk menonaktifkan mode auto-broadcast
