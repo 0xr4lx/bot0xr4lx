@@ -7,6 +7,9 @@ rich==13.7.1
 pytz==2024.1
 psutil
 motor
+geopy
+qrcode
+speedtest-cli
 dnspython
 GitPython
 bs4
