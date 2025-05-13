@@ -477,7 +477,8 @@ async def _(client, message):
             await msg.edit(f"⌭ {brhsl}Auto GCast sudah aktif.")
     elif type == "off":
         if client.me.id in AG:
-            AG.remove(client.me.id)  # Hapus dari daftar aktif
+            AG.remove(client.me.id)
+            status["auto_broadcast_active"] = True # Hapus dari daftar aktif
             await msg.edit(f"⌭ {brhsl}Auto-broadcast dimatikan.")
         else:
             await msg.edit(f"⌭ {brhsl}Auto-broadcast belum diaktifkan, tidak ada yang dimatikan.")
