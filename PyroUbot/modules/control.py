@@ -28,6 +28,32 @@ query:
     ><code>{0}alasan</code></blockquote>
 """
 
+async def is_userbot_active(user_id: int):
+    """Cek apakah user memiliki userbot aktif berdasarkan database."""
+    user = await ubotdb.find_one({"user_id": user_id})
+    return bool(user) 
+
+@PY.BOT("risetprefix")
+@PY.START
+@PY.PRIVATE
+async def _(client, message):
+    user_id = message.from_user.id  
+    default_prefix = "."  
+   
+    if not await is_userbot_active(user_id):
+        return await message.reply("<b>⚠️ Maaf, Anda belum memiliki userbot aktif.</b>\nSilakan aktifkan userbot terlebih dahulu.")
+
+    await set_pref(user_id, [default_prefix])
+
+    if hasattr(client, "set_prefix"):
+        await client.set_prefix(user_id, [default_prefix])
+
+    updated_prefix = await get_pref(user_id)  
+
+    if updated_prefix == [default_prefix]:
+        await message.reply("<b>✅ Prefix bot berhasil di-reset ke default: .</b>\nSekarang Anda bisa menggunakan perintah dengan titik (.) seperti .help")
+    else:
+        await message.reply("<b>⚠️ Gagal mereset prefix. Coba restart bot atau cek database.</b>")
 
 @PY.UBOT("creat")
 @PY.TOP_CMD
