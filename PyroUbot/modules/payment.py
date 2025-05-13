@@ -16,7 +16,7 @@ db = client["PyroUbot"]
 payments = db["payments"]
 
 # Konfigurasi QRIS
-HARGA_DASAR = 200
+HARGA_DASAR = 10000
 LOG_CHANNEL = -1002663436301
 
 qris = QRISPayment(
