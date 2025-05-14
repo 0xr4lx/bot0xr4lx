@@ -3,7 +3,7 @@
 apt update && apt upgrade -y
 ```
 ```
-cd ubot && screen -S ubot
+cd bot0xr4lx && screen -S bot0xr4lx
 ```
 ```
 apt install ffmpeg -y
@@ -15,7 +15,7 @@ bash installnode.sh
 apt install python3.10-venv
 ```
 ```
-python3 -m venv ubot && source ubot/bin/activate
+python3 -m venv bot0xr4lx && source bot0xr4lx/bin/activate
 ```
 ```
 pip3 install -r requirements.txt
@@ -24,7 +24,7 @@ pip3 install -r requirements.txt
 cp sample.env .env && nano .env
 ```
 ```
-screen -S ubot
+screen -S bot0xr4lx
 ```
 ```
 python3 -m PyroUbot
@@ -33,13 +33,13 @@ python3 -m PyroUbot
 ---------- Menghidupan jika ubot mati -------------
 ```
 ```
-cd ubotalfnew && screen -S ubotalfnew
+cd bot0xr4lxalfnew && screen -S bot0xr4lxalfnew
 ```
 ```
 python3 -m venv venv && source venv/bin/activate
 ```
 ```
-screen -S ubotalfnew
+screen -S bot0xr4lxalfnew
 ```
 ```
 python3 -m PyroUbot
