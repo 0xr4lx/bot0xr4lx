@@ -33,7 +33,7 @@ python3 -m PyroUbot
 ---------- Menghidupan jika ubot mati -------------
 ```
 ```
-cd bot0xr4lxalfnew && screen -S bot0xr4lxalfnew
+cd bot0xr4lx && screen -S bot0xr4lx
 ```
 ```
 python3 -m venv venv && source venv/bin/activate
