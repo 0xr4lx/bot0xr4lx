@@ -525,6 +525,86 @@ async def _(client, message):
            now = datetime.now(wib)
            await msg.edit(f"⌭ {brhsl}Waktu server saat ini: {now.strftime('%d/%m/%Y %H:%M')}")
 
+    elif type == "watermark":
+        if value.lower() == "off":
+            await set_vars(client.me.id, "WATERMARK_BC", "")
+            return await msg.edit(f"{brhsl}Watermark dinonaktifkan.")
+    
+        if not value:
+            return await msg.edit(f"{ggl}Masukkan teks watermark yang ingin ditambahkan.")
+    
+        await set_vars(client.me.id, "WATERMARK_BC", value)
+        await msg.edit(f"{brhsl}Watermark disimpan: {value}")
+
+    
+    elif type == "mode":
+        if value.lower() not in ["normal", "forward"]:
+            return await msg.edit(f"{ggl} Mode tidak dikenal! Gunakan `normal` atau `forward`.")
+        await set_vars(client.me.id, "MODE_BC", value.lower())
+        return await msg.edit(f"{brhsl}Mode broadcast diatur ke: {value.lower()}")
+
+    elif type == "add":
+        if not message.reply_to_message:
+            return await msg.edit("⌭ Balas pesan yang ingin disimpan ke daftar AUTO_TEXT.")
+
+        original = message.reply_to_message
+        text = original.text or original.caption
+        entities = original.entities or original.caption_entities or []
+
+        if not text and not original.media:
+            return await msg.edit("⌭ Pesan tidak mengandung teks/caption/media yang bisa disimpan.")
+
+        auto_texts = await get_vars(client.me.id, "AUTO_TEXT") or []
+
+        item = {}
+        if text:
+            entity_list = []
+            for e in entities or []:
+                entity_list.append({
+                    "type": e.type.name,
+                    "offset": e.offset,
+                    "length": e.length,
+                    "url": e.url,
+                    "user": e.user.id if e.user else None,
+                    "language": e.language
+                }) 
+            item = {"text": text, "entities": entity_list}
+
+    # Tambahkan info untuk mode forward
+        item["chat_id"] = original.chat.id
+        item["message_id"] = original.id
+
+        auto_texts.append(item)
+        await set_vars(client.me.id, "AUTO_TEXT", auto_texts)
+        return await msg.edit(f"{brhsl} Pesan berhasil ditambahkan ke daftar broadcast.")
+
+    elif type == "list":
+        auto_texts = await get_vars(client.me.id, "AUTO_TEXT") or []
+
+        if not auto_texts:
+            return await message.edit("⌭ Daftar auto broadcast kosong.")
+
+        teks = "<b>Daftar Auto Broadcast:</b>\n\n"
+        for i, item in enumerate(auto_texts, 1):
+            potongan = (item.get("text") or "").replace("\n", " ")[:40]
+            teks += f"{i}. {potongan}...\n"
+
+        await message.edit(teks)
+
+    elif type == "del":
+        if len(cmd) < 3 or not cmd[2].isdigit():
+            return await msg.edit("⌭ Gunakan format: <code>.autobc del [nomor]</code>")
+
+        index = int(cmd[2]) - 1
+        auto_texts = await get_vars(client.me.id, "AUTO_TEXT") or []
+
+        if index < 0 or index >= len(auto_texts):
+            return await msg.edit("⌭ Nomor tidak valid di daftar AUTO_TEXT.")
+
+        del auto_texts[index]
+        await set_vars(client.me.id, "AUTO_TEXT", auto_texts)
+        return await msg.edit(f"{brhsl} Data nomor {index+1} berhasil dihapus.")
+
 # Perintah '.autobc status' untuk menampilkan status pengaturan modul autobc
     elif type == "status":
           setday_str = await get_vars(client.me.id, "SETDAY_GCAST")
@@ -568,15 +648,14 @@ async def _(client, message):
         delay = float(await get_vars(client.me.id, "DELAY_GCAST") or 1)
         interval = int(await get_vars(client.me.id, "INTERVAL_GCAST") or 0)
         blacklist = await get_list_from_vars(client.me.id, "BL_ID")
+        watermark = await get_vars(client.me.id, "WATERMARK_BC") or ""
+        mode = await get_vars(client.me.id, "MODE_BC") or "normal"
+        auto_texts = await get_vars(client.me.id, "AUTO_TEXT") or []
         now = datetime.now(wib)
 
-        if not message.reply_to_message:
-                  return await msg.edit("⌭ Balas pesan (teks, gambar, atau dokumen) yang ingin kamu broadcast.")
+        if not auto_texts:
+            return await message.reply("⌭ Tidak ada data yang disimpan di AUTO_TEXT.")
 
-# Validasi konten
-        text = message.reply_to_message.text or message.reply_to_message.caption
-        if not text and not message.reply_to_message.media:
-            return await msg.edit("⌭ Pesan tidak memiliki konten yang dapat dibroadcast.")
         round_cound = 1
 
         while True:
@@ -607,25 +686,45 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off.</blockquote>
             total_gagal = 0
             group = 0
 
-            async for dialog in client.get_dialogs():
-                if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
-                    try:
-                        await asyncio.sleep(delay)
-                        await message.reply_to_message.copy(dialog.chat.id)
-                        print(f"✅ Berhasil kirim ke: {dialog.chat.title}")
-                        group += 1
-                        total_berhasil += 1
-                    except FloodWait as e:
-                        print(f"⏱️ FloodWait {e.value} detik untuk: {dialog.chat.title}")
-                        await asyncio.sleep(e.value)
-                        await message.reply_to_message.copy(dialog.chat.id)
-                        print(f"✅ Setelah FloodWait: Berhasil kirim ke {dialog.chat.title}")
-                        group += 1
-                        total_berhasil += 1
-                    except Exception as e:
-                        print(f"❌ Gagal kirim ke {dialog.chat.title} ({dialog.chat.id}): {e}")
-                        total_gagal += 1
-                        continue
+            for dialog in client.iter_dialogs():
+                async for dialog in client.get_dialogs():
+                    if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
+                        try:
+                            await asyncio.sleep(delay)
+
+                            for item in auto_texts:
+                                if mode == "forward":
+                                    chat_id = item.get("chat_id")
+                                    message_id = item.get("message_id")
+                                    if chat_id and message_id:
+                                        await client.forward_messages(dialog.chat.id, chat_id, message_id)
+                                else:  # mode normal
+                                    text = item.get("text")
+                                    entities = item.get("entities", [])
+                                    parsed_entities = [
+                                        MessageEntity(
+                                            type=getattr(MessageEntityType, ent["type"]),
+                                            offset=ent["offset"],
+                                            length=ent["length"],
+                                            url=ent.get("url"),
+                                            user=ent.get("user"),
+                                            language=ent.get("language")
+                                        )
+                                        for ent in entities
+                                    ] if entities else []
+
+                                    new_text = f"{text}\n\n{watermark}" if watermark else text
+                                    await client.send_message(dialog.chat.id, text=new_text, entities=parsed_entities)
+
+                            print(f"✅ Berhasil kirim ke: {dialog.chat.title}")
+                            total_berhasil += 1
+                        except FloodWait as e:
+                            print(f"⏱️ FloodWait {e.value} detik")
+                            await asyncio.sleep(e.value)
+                            total_berhasil += 1
+                        except Exception as e:
+                            print(f"❌ Gagal kirim ke {dialog.chat.title}: {e}")
+                            total_gagal += 1
 
             server_time = datetime.now(wib)
 
