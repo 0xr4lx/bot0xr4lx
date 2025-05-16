@@ -764,7 +764,10 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off.</blockquote>
                     except Exception as e:
                         print(f"❗ Gagal parsing SETDAY_GCAST: {e}")
                 
-                await asyncio.sleep(interval * 60)
+                for _ in range(interval * 60):
+                    if not status["auto_broadcast_active"]:
+                        return await message.reply("⌭ Auto-broadcast dihentikan selama interval.")
+                    await asyncio.sleep(1)
             else:
                 break 
     else:
