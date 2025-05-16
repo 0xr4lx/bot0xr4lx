@@ -5,6 +5,8 @@ from pytz import timezone
 from gc import get_objects
 from datetime import datetime, timedelta
 from asyncio import sleep
+from pyrogram.enums import MessageEntityType
+from pyrogram.types import MessageEntity
 from pyrogram.enums import ChatType
 from pyrogram.errors import FloodWait
 from pyrogram.raw.functions.messages import DeleteHistory, StartBot
@@ -32,10 +34,7 @@ __HELP__ = """
 ⊷ mengirim pesan ke user/group/channel
 
 ᚗ <code>{0}autobc</code>
-⊷ mengirim pesan siaran secara otomatis
-
-⌭ query :
-⊷ |on/off |text |delay |remove |limit</b></blockquote>
+⊷ mengirim pesan siaran secara otomatis</b></blockquote>
 """
 
 MODE = {}
@@ -556,24 +555,31 @@ async def _(client, message):
 
         auto_texts = await get_vars(client.me.id, "AUTO_TEXT") or []
 
-        item = {}
-        if text:
-            entity_list = []
-            for e in entities or []:
-                entity_list.append({
-                    "type": e.type.name,
-                    "offset": e.offset,
-                    "length": e.length,
-                    "url": e.url,
-                    "user": e.user.id if e.user else None,
-                    "language": e.language
-                }) 
-            item = {"text": text, "entities": entity_list}
+        entity_list = []
+        for e in entities:
+            entity_list.append({
+                "type": e.type.name,
+                "offset": e.offset,
+                "length": e.length,
+                "url": e.url,
+                "user": e.user.id if e.user else None,
+                "language": e.language
+            })
+
+        item = {
+            "text": text,
+            "entities": entity_list,
+            "mode": "normal"
+        }
+
+        if original.forward_from or original.forward_from_chat:
+            item["chat_id"] = original.chat.id
+            item["message_id"] = original.id
+            item["mode"] = "forward"
+        else:
+            item["mode"] = "normal"
 
     # Tambahkan info untuk mode forward
-        item["chat_id"] = original.chat.id
-        item["message_id"] = original.id
-
         auto_texts.append(item)
         await set_vars(client.me.id, "AUTO_TEXT", auto_texts)
         return await msg.edit(f"{brhsl} Pesan berhasil ditambahkan ke daftar broadcast.")
@@ -587,11 +593,20 @@ async def _(client, message):
         teks = "<b>Daftar Auto Broadcast:</b>\n\n"
         for i, item in enumerate(auto_texts, 1):
             potongan = (item.get("text") or "").replace("\n", " ")[:40]
-            teks += f"{i}. {potongan}...\n"
+            mode = item.get("mode", "normal")
+            chat_id = item.get("chat_id")
+            message_id = item.get("message_id")
+            
+            if mode == "forward":
+                teks += f"{i}. [FORWARD] chat_id={chat_id}, message_id={message_id}\n"
+            else:
+                teks += f"{i}. [NORMAL] {potongan}...\n"
 
         await message.edit(teks)
 
     elif type == "del":
+        cmd = message.text.split()
+
         if len(cmd) < 3 or not cmd[2].isdigit():
             return await msg.edit("⌭ Gunakan format: <code>.autobc del [nomor]</code>")
 
@@ -610,6 +625,7 @@ async def _(client, message):
           setday_str = await get_vars(client.me.id, "SETDAY_GCAST")
           delay = await get_vars(client.me.id, "DELAY_GCAST") or "-"
           interval = await get_vars(client.me.id, "INTERVAL_GCAST") or "-"
+          mode = await get_vars(client.me.id, "MODE_BC") or "normal"
           status_online = client.me.id in AG
           emoji_status = "🟢" if status_online else "🔴"  # Menampilkan emoji online/offline
      
@@ -631,6 +647,7 @@ async def _(client, message):
 
 ╭━ <b>Info Pengaturan</b>
 ├ 📶 <b>Status</b> : {emoji_status} {"Online" if status_online else "Offline"}
+├ ⚙️ <b>Mode</b> : {mode}
 ├ 🕒 <b>Delay</b> : {delay}s/grup
 ├ ⏳ <b>Interval</b> : {interval}m
 ├ 📴 <b>Auto-off</b> : {auto_off_display}
@@ -686,45 +703,47 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off.</blockquote>
             total_gagal = 0
             group = 0
 
-            for dialog in client.iter_dialogs():
-                async for dialog in client.get_dialogs():
-                    if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
-                        try:
-                            await asyncio.sleep(delay)
+            
+            async for dialog in client.get_dialogs():
+                if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and dialog.chat.id not in blacklist:
+                    try:
+                        await asyncio.sleep(delay)
 
-                            for item in auto_texts:
-                                if mode == "forward":
-                                    chat_id = item.get("chat_id")
-                                    message_id = item.get("message_id")
-                                    if chat_id and message_id:
-                                        await client.forward_messages(dialog.chat.id, chat_id, message_id)
-                                else:  # mode normal
-                                    text = item.get("text")
-                                    entities = item.get("entities", [])
-                                    parsed_entities = [
-                                        MessageEntity(
-                                            type=getattr(MessageEntityType, ent["type"]),
-                                            offset=ent["offset"],
-                                            length=ent["length"],
-                                            url=ent.get("url"),
-                                            user=ent.get("user"),
-                                            language=ent.get("language")
-                                        )
-                                        for ent in entities
-                                    ] if entities else []
+                        for item in auto_texts:
+                            item_mode = item.get("mode", "normal")
 
-                                    new_text = f"{text}\n\n{watermark}" if watermark else text
-                                    await client.send_message(dialog.chat.id, text=new_text, entities=parsed_entities)
+                            if item_mode == "forward":
+                                chat_id = item.get("chat_id")
+                                message_id = item.get("message_id")
+                                if chat_id and message_id:
+                                    await client.forward_messages(dialog.chat.id, chat_id, message_id)
+                            else:  # mode normal
+                                text = item.get("text")
+                                entities = item.get("entities", [])
+                                parsed_entities = [
+                                    MessageEntity(
+                                        type=getattr(MessageEntityType, ent["type"]),
+                                        offset=ent["offset"],
+                                        length=ent["length"],
+                                        url=ent.get("url"),
+                                        user=ent.get("user"),
+                                        language=ent.get("language")
+                                    )
+                                    for ent in entities
+                                ] if entities else []
 
-                            print(f"✅ Berhasil kirim ke: {dialog.chat.title}")
-                            total_berhasil += 1
-                        except FloodWait as e:
-                            print(f"⏱️ FloodWait {e.value} detik")
-                            await asyncio.sleep(e.value)
-                            total_berhasil += 1
-                        except Exception as e:
-                            print(f"❌ Gagal kirim ke {dialog.chat.title}: {e}")
-                            total_gagal += 1
+                                new_text = f"{text}\n\n{watermark}" if watermark else text
+                                await client.send_message(dialog.chat.id, text=new_text, entities=parsed_entities)
+
+                        print(f"✅ Berhasil kirim ke: {dialog.chat.title}")
+                        total_berhasil += 1
+                    except FloodWait as e:
+                        print(f"⏱️ FloodWait {e.value} detik")
+                        await asyncio.sleep(e.value)
+                        total_berhasil += 1
+                    except Exception as e:
+                        print(f"❌ Gagal kirim ke {dialog.chat.title}: {e}")
+                        total_gagal += 1
 
             server_time = datetime.now(wib)
 
@@ -735,10 +754,11 @@ Auto broadcast dinonaktifkan otomatis sesuai jadwal Auto-Off.</blockquote>
 ╭━ <b>Ringkasan</b>
 ├ ✅ <b>Status</b> : Selesai
 ├ 📬 <b>Berhasil</b> : {total_berhasil} grup
+├ ⚙️ <b>Mode</b> : {mode}
 ├ ❌ <b>Gagal</b> : {total_gagal} grup
 ├ 🕒 <b>Delay</b> : {delay}s/grup
 ├ ⏳ <b>Interval Delay</b> : {interval}m
-├ ⚙️<b>Interval Ke</b> : {round_cound}
+├♻️<b>Interval Ke</b> : {round_cound}
 ╰ 🕰️ <b>TimeNow</b> : {server_time.strftime('%d/%m/%Y %H:%M')}</blockquote>
 """, quote=True)
 
