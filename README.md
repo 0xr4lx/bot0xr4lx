@@ -36,7 +36,7 @@ python3 -m PyroUbot
 cd bot0xr4lx && screen -S bot0xr4lx
 ```
 ```
-python3 -m venv venv && source venv/bin/activate
+python3 -m venv bot0xr4lx && source bot0xr4lx/bin/activate
 ```
 ```
 screen -S bot0xr4lxalfnew
